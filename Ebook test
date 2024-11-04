@@ -1,0 +1,90 @@
+import unittest
+from catalog import Catalog
+from customer import Customer
+from ebook import EBook
+from shopping_cart import ShoppingCart
+from order import Order
+from invoice import Invoice
+
+class TestEBookStore(unittest.TestCase):
+
+    def setUp(self):
+        self.catalog = Catalog()
+        self.customer = Customer("Test Customer", "test@example.com", is_loyalty_member=True)
+    
+    #Test adding a new eBook to the catalog.
+    def test_add_ebook(self):
+        ebook = EBook("Python Programming", "John Doe", "2023", "Programming", 29.99)
+        self.catalog.add_ebook(ebook)
+        self.assertIn("Python Programming", self.catalog._ebooks)
+        self.assertEqual(self.catalog.get_ebook("Python Programming").get_author(), "John Doe")
+
+    # Test modifying an existing eBook's details.
+    def test_modify_ebook(self):
+        ebook = EBook("Python Programming", "John Doe", "2023", "Programming", 29.99)
+        self.catalog.add_ebook(ebook)
+
+        # Modify eBook details
+        ebook._price = 24.99
+        self.assertEqual(self.catalog.get_ebook("Python Programming").get_price(), 24.99)
+
+    #Test removing an eBook from the catalog.
+    def test_remove_ebook(self):
+        ebook = EBook("Python Programming", "John Doe", "2023", "Programming", 29.99)
+        self.catalog.add_ebook(ebook)
+        self.catalog._ebooks.pop(ebook.get_title())  # Simulating removal
+        self.assertNotIn("Python Programming", self.catalog._ebooks)
+
+    # Test adding a new customer.
+    def test_add_customer(self):
+        self.assertEqual(self.customer.name, "Test Customer")
+        self.assertEqual(self.customer._contact_info, "test@example.com")
+        self.assertTrue(self.customer.is_loyalty_member)
+
+    #Test adding an eBook to the shopping cart.
+    def test_add_ebook_to_cart(self):
+        ebook = EBook("Python Programming", "John Doe", "2023", "Programming", 29.99)
+        self.catalog.add_ebook(ebook)
+        self.customer.add_to_cart(ebook, 1)
+        cart_items = self.customer.get_cart().get_items()
+        self.assertIn("Python Programming", cart_items)
+        self.assertEqual(cart_items["Python Programming"]["quantity"], 1)
+
+    #Test the discount calculation for loyalty members
+    def test_apply_discount_for_loyalty_member(self):
+        ebook = EBook("Python Programming", "John Doe", "2023", "Programming", 29.99)
+        self.catalog.add_ebook(ebook)
+        self.customer.add_to_cart(ebook, 3)  # Adding 3 eBooks
+        order = Order(self.customer)
+        self.assertAlmostEqual(order.calculate_discount(), 8.99)  # 10% of 29.99 * 3
+    
+    #Test the invoice generation.
+    def test_invoice_generation(self):    
+        ebook1 = EBook("Python Programming", "John Doe", "2023", "Programming", 29.99)
+        ebook2 = EBook("Data Science", "Jane Doe", "2023", "Science", 39.99)
+        self.catalog.add_ebook(ebook1)
+        self.catalog.add_ebook(ebook2)
+
+        self.customer.add_to_cart(ebook1, 2)  # 2 copies of eBook1
+        self.customer.add_to_cart(ebook2, 1)  # 1 copy of eBook2
+        order = Order(self.customer)
+        invoice = Invoice(order)
+        
+        # Total Calculation
+        total_price = order.calculate_total()  # 2 * 29.99 + 39.99
+        self.assertAlmostEqual(total_price, 99.97)  # Check total price
+        discount = order.calculate_discount()
+        self.assertAlmostEqual(discount, 9.99)  # 10% discount for loyalty member
+        total_with_discount = total_price - discount
+        self.assertAlmostEqual(total_with_discount, 89.98)
+        
+        # VAT Calculation
+        vat = total_with_discount * 0.08
+        self.assertAlmostEqual(vat, 7.1984)
+
+        # Total Cac
+        final_total = total_with_discount + vat
+        self.assertAlmostEqual(final_total, 97.1784)
+
+if __name__ == '__main__':
+    unittest.main()
